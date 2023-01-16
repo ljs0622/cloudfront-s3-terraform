@@ -49,24 +49,6 @@ resource "aws_route53_record" "root_domain_ns" {
     ]
 }
 
-/** SSL certificate **/
-module "acm_request_certificate" {
-    source                            = "cloudposse/acm-request-certificate/aws"
-    version                           = "0.17.0"
-    domain_name                       = var.domain_name
-    zone_id                           = aws_route53_zone.root_domain.id
-    process_domain_validation_options = true
-    ttl                               = "300"
-    subject_alternative_names         = [ "*.${var.domain_name}" ]
-
-
-    # To use an ACM certificate with Amazon CloudFront, you must request or import the certificate in the US East (N. Virginia) region.
-    # (https://docs.aws.amazon.com/acm/latest/userguide/acm-regions.html)
-    providers = {
-        aws = aws.us-east-1
-    }
-}
-
 resource "aws_cloudfront_origin_access_control" "cloudfront_oacs" {
     for_each = toset(var.report_names)
 
@@ -76,3 +58,40 @@ resource "aws_cloudfront_origin_access_control" "cloudfront_oacs" {
     signing_behavior                  = "always"
     signing_protocol                  = "sigv4"
 }
+
+# /** SSL certificate **/
+# module "acm_request_certificate" {
+#     source                            = "cloudposse/acm-request-certificate/aws"
+#     version                           = "0.17.0"
+#     domain_name                       = var.domain_name
+#     zone_id                           = aws_route53_zone.root_domain.id
+#     process_domain_validation_options = true
+#     ttl                               = "300"
+#     subject_alternative_names         = [ "*.${var.domain_name}" ]
+
+
+#     # To use an ACM certificate with Amazon CloudFront, you must request or import the certificate in the US East (N. Virginia) region.
+#     # (https://docs.aws.amazon.com/acm/latest/userguide/acm-regions.html)
+#     providers = {
+#         aws = aws.us-east-1
+#     }
+# }
+
+# SSL Certificate
+module "acm_cert" {
+    source                  = "./acm_cert"
+    domain_name               = var.domain_name
+
+# To use an ACM certificate with Amazon CloudFront, you must request or import the certificate in the US East (N. Virginia) region.
+# (https://docs.aws.amazon.com/acm/latest/userguide/acm-regions.html)
+    providers = {
+      aws = aws.us-east-1
+    }
+}
+
+
+
+# resource "aws_acm_certificate_validation" "cert_validation" {
+#   certificate_arn = aws_acm_certificate.ssl_certificate.arn
+#   validation_record_fqdns = [for record in aws_route53_record.records : record.fqdn]
+# }
