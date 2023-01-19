@@ -12,7 +12,7 @@ resource "aws_s3_bucket_public_access_block" "report_bucket_block_publics" {
   ignore_public_acls      = true
   restrict_public_buckets = true
 
-  depends_on = [ aws_s3_bucket.report_bucket ]
+  depends_on = [aws_s3_bucket.report_bucket]
 }
 
 # S3 Object Ownership
@@ -23,7 +23,7 @@ resource "aws_s3_bucket_ownership_controls" "report_bucket_ownership" {
     object_ownership = "BucketOwnerEnforced"
   }
 
-  depends_on = [ aws_s3_bucket.report_bucket ]
+  depends_on = [aws_s3_bucket.report_bucket]
 }
 
 #CloudFront OAC
@@ -36,7 +36,7 @@ resource "aws_cloudfront_origin_access_control" "cloudfront_oac" {
   signing_behavior                  = "always"
   signing_protocol                  = "sigv4"
 
-  depends_on = [ aws_s3_bucket.report_bucket ]
+  depends_on = [aws_s3_bucket.report_bucket]
 }
 
 #CloudFront cache policy
@@ -64,7 +64,7 @@ resource "aws_cloudfront_distribution" "report_distributions" {
     compress               = false
     viewer_protocol_policy = "redirect-to-https"
 
-    cache_policy_id          = data.aws_cloudfront_cache_policy.cache_policy.id
+    cache_policy_id = data.aws_cloudfront_cache_policy.cache_policy.id
   }
 
   restrictions {
@@ -74,14 +74,57 @@ resource "aws_cloudfront_distribution" "report_distributions" {
   }
 
   viewer_certificate {
-    acm_certificate_arn      = module.acm_cert.aws_acm_certificate.arn
+    acm_certificate_arn      = var.ssl_certificate_arn
     minimum_protocol_version = "TLSv1.2_2021"
     ssl_support_method       = "sni-only"
   }
 
+  web_acl_id = var.waf_web_acl_arn
 
-  depends_on = [ 
+  depends_on = [
     aws_s3_bucket.report_bucket,
-      
+    aws_cloudfront_origin_access_control.cloudfront_oac
   ]
+}
+
+#Hosted Zone ID
+data "aws_route53_zone" "root_domain" {
+  name = "${var.domain_name}"
+}
+
+#Route53 Record for CloudFront distribution
+resource "aws_route53_record" "report_distributions_record" {
+  type    = "A"
+  alias {
+    name    = aws_cloudfront_distribution.report_distributions.domain_name
+    zone_id = data.aws_route53_zone.root_domain.id
+  }
+}
+
+# S3 Bucket Policy for allowing access to bucket
+resource "aws_s3_bucket_policy" "report_bucket_policy" {
+  bucket = aws_s3_bucket.report_bucket.id
+
+  policy = <<EOF
+{
+  "Version": "2012-10-17",
+  "Id": "PolicyForCloudFrontPrivateContent",
+  "Statement": [
+    {
+      "Sid": "AllowCloudFrontServicePrincipalReadOnly",
+      "Effect": "Allow",
+      "Principal": {
+        "Service": "cloudfront.amazonaws.com"
+      },
+      "Action": "s3:GetObject",
+      "Resource": "${aws_s3_bucket.report_bucket.arn}/*",
+      "Condition": {
+        "StringEquals": {
+          "AWS:SourceArn": "${aws_cloudfront_distribution.report_distributions.arn}"
+        }
+      }
+    }
+  ]
+}
+EOF
 }
