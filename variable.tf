@@ -17,3 +17,11 @@ variable "domain_name" {
     type = string
     default = "junsleetest.link"
 }
+
+variable "ip_lists" {
+    type = list(string)
+    default = [
+        "54.239.0.0/16",
+        "165.243.192.0/24"
+    ]
+}

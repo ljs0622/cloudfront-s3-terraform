@@ -51,12 +51,17 @@ resource "aws_route53_record" "root_domain_ns" {
         aws_route53_zone.root_domain.name_servers[2],
         aws_route53_zone.root_domain.name_servers[3]
     ]
+
+    depends_on = [
+      aws_route53_zone.root_domain
+    ]
 }
 
 # SSL Certificate
 module "acm_cert" {
-    source                  = "./acm_cert"
+    source                  = "./acm_cert_waf"
     domain_name             = var.domain_name
+    ip_lists                = var.ip_lists
 
 # To use an ACM certificate with Amazon CloudFront, you must request or import the certificate in the US East (N. Virginia) region.
 # (https://docs.aws.amazon.com/acm/latest/userguide/acm-regions.html)
@@ -76,58 +81,58 @@ resource "aws_cloudfront_origin_access_control" "cloudfront_oacs" {
     signing_protocol                  = "sigv4"
 }
 
-#CloudFront cache policy
-data "aws_cloudfront_cache_policy" "cache_policy" {
-  name = "Managed-CachingOptimized"
-}
+# #CloudFront cache policy
+# data "aws_cloudfront_cache_policy" "cache_policy" {
+#   name = "Managed-CachingOptimized"
+# }
 
-/** CloudFront Distribution **/
-resource "aws_cloudfront_distribution" "report_distributions" {
-    for_each = aws_cloudfront_origin_access_control.cloudfront_oacs
+# /** CloudFront Distribution **/
+# resource "aws_cloudfront_distribution" "report_distributions" {
+#     for_each = aws_cloudfront_origin_access_control.cloudfront_oacs
 
-    origin {
-        domain_name              = each.value.name
-        origin_id                = each.value.id
-        origin_access_control_id = aws_cloudfront_origin_access_control.fe_oac.id
-    }
+#     origin {
+#         domain_name              = each.value.name
+#         origin_id                = each.value.id
+#         origin_access_control_id = aws_cloudfront_origin_access_control.fe_oac.id
+#     }
 
-  enabled             = true
-  default_root_object = "index.html"
-  aliases             = [local.domain]
+#   enabled             = true
+#   default_root_object = "index.html"
+#   aliases             = [local.domain]
 
-  custom_error_response {
-    error_caching_min_ttl = 0
-    error_code            = 403
-    response_code         = 200
-    response_page_path    = "/403.html"
-  }
+#   custom_error_response {
+#     error_caching_min_ttl = 0
+#     error_code            = 403
+#     response_code         = 200
+#     response_page_path    = "/403.html"
+#   }
 
-  default_cache_behavior {
-    allowed_methods        = ["GET", "HEAD"]
-    cached_methods         = ["GET", "HEAD"]
-    target_origin_id       = aws_s3_bucket.fe_contents.id
-    compress               = false
-    viewer_protocol_policy = "redirect-to-https"
+#   default_cache_behavior {
+#     allowed_methods        = ["GET", "HEAD"]
+#     cached_methods         = ["GET", "HEAD"]
+#     target_origin_id       = aws_s3_bucket.fe_contents.id
+#     compress               = false
+#     viewer_protocol_policy = "redirect-to-https"
 
-    origin_request_policy_id = data.aws_cloudfront_origin_request_policy.fe_origin_policy.id
-    cache_policy_id          = data.aws_cloudfront_cache_policy.fe_cache_policy.id
-  }
+#     origin_request_policy_id = data.aws_cloudfront_origin_request_policy.fe_origin_policy.id
+#     cache_policy_id          = data.aws_cloudfront_cache_policy.fe_cache_policy.id
+#   }
 
-  restrictions {
-    geo_restriction {
-      restriction_type = "none"
-    }
-  }
+#   restrictions {
+#     geo_restriction {
+#       restriction_type = "none"
+#     }
+#   }
 
-  viewer_certificate {
-    acm_certificate_arn      = module.acm_request_certificate.arn
-    minimum_protocol_version = "TLSv1.2_2021"
-    ssl_support_method       = "sni-only"
-  }
+#   viewer_certificate {
+#     acm_certificate_arn      = module.acm_request_certificate.arn
+#     minimum_protocol_version = "TLSv1.2_2021"
+#     ssl_support_method       = "sni-only"
+#   }
 
-  # Tags of cloudfront
-  tags = {
-    Name        = var.domain_namespace
-    Environment = "development"
-  }
-}
+#   # Tags of cloudfront
+#   tags = {
+#     Name        = var.domain_namespace
+#     Environment = "development"
+#   }
+# }
