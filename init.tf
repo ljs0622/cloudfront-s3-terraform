@@ -1,3 +1,4 @@
+#Resources for storing Terraform state file in S3
 resource "aws_s3_bucket" "tfstate" {
   bucket = "tfstate-bucket-junslee"
 }
