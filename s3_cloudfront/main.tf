@@ -89,15 +89,18 @@ resource "aws_cloudfront_distribution" "report_distributions" {
 
 #Hosted Zone ID
 data "aws_route53_zone" "root_domain" {
-  name = "${var.domain_name}"
+  name = var.domain_name
 }
 
 #Route53 Record for CloudFront distribution
 resource "aws_route53_record" "report_distributions_record" {
+  name    = "${var.report_name}.${var.domain_name}"
+  zone_id = data.aws_route53_zone.root_domain.id
   type    = "A"
   alias {
-    name    = aws_cloudfront_distribution.report_distributions.domain_name
-    zone_id = data.aws_route53_zone.root_domain.id
+    name                   = aws_cloudfront_distribution.report_distributions.domain_name
+    zone_id                = aws_cloudfront_distribution.report_distributions.hosted_zone_id
+    evaluate_target_health = false
   }
 }
 
