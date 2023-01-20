@@ -1,27 +1,24 @@
 variable "report_names" {
   type = list(string)
+  description = "Subdomain name list. ex) aaa.example.com, bbb.example.com"
+
   default = [
-    "cshq-cloud",
-    "cshq-eap",
-    "cshq-linux",
-    "cssc-cloud",
-    "cssc-eap",
-    "cssc-linux",
-    "csscsal-cloud",
-    "csscsal-eap",
-    "csscsal-linux"
+    "aaa",
+    "bbb"
   ]
 }
 
 variable "domain_name" {
   type    = string
-  default = "junsleetest.link"
+  description = "Root domain name. ex) example.com"
+  default = "example.com"
 }
 
 variable "ip_lists" {
   type = list(string)
+  description = "Allowed IP lists. The IP format is CIDR"
   default = [
-    "54.239.0.0/16",
-    "165.243.192.0/24"
+    "1.2.3.4/32",
+    "244.244.244.0/24"
   ]
 }
